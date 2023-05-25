@@ -57,7 +57,7 @@ CREATE TABLE characteristics (
 CREATE TABLE characteristic_reviews(
   id serial primary key,
   review_id int references reviews(review_id),
-  characteristic_id int,  --references characteristics(id),
+  characteristic_id int,  --references characteristics(id), -- need to address fk issues
   value int
 );
 
