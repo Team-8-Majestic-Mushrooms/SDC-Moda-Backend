@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 mongoose.connect('mongodb://localhost/sdc');
 
+const photosSchema = mongoose.schema({
+  url: String,
+});
+
 const reviewSchema = mongoose.schema({
   review_id: { type: Number, unique: true },
   product_id: Number,
@@ -15,15 +19,11 @@ const reviewSchema = mongoose.schema({
   reviewer_email: String,
   response: String,
   helpfulness: { type: Number, default: 0 },
-  photos: Array,
+  photos: [photosSchema],
   chars_fit: Number,
   chars_length: Number,
   chars_comfort: Number,
   chars_quality: Number,
   chars_size: Number,
   chars_width: Number,
-});
-
-const photosSchema = mongoose.schema({
-  url: String,
 });
