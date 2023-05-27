@@ -35,6 +35,8 @@ CREATE TABLE reviews (
 
 \copy reviews from '../SDC_Data/reviews.csv' with csv header;
 
+CREATE INDEX r_idx_product_id ON reviews(product_id);
+
 -- Photos
 CREATE TABLE photos(
   id serial primary key,
@@ -47,6 +49,8 @@ CREATE TABLE photos(
 CREATE MATERIALIZED VIEW photos_agg AS
   SELECT review_id, jsonb_agg(jsonb_build_object('id', id, 'url', url)) AS photos
   FROM photos GROUP BY review_id;
+
+CREATE INDEX idx_review_id ON photos_agg(review_id);
 
 -- Characteristics
 CREATE TABLE characteristics (
@@ -67,8 +71,10 @@ CREATE TABLE characteristic_reviews(
 
 \copy characteristic_reviews from '../SDC_Data/characteristic_reviews.csv' with csv header;
 
--- query for meta counts
-CREATE MATERIALIZED VIEw count_rating_agg AS
+CREATE INDEX idx_char_id ON characteristic_reviews(characteristic_id);
+
+-- Materialized view for meta counts
+CREATE MATERIALIZED VIEW count_rating_agg AS
 SELECT product_id,
   JSONB_BUILD_OBJECT(
   '1', COUNT(rating) FILTER (WHERE rating = 1),
@@ -84,6 +90,8 @@ SELECT product_id,
 FROM reviews
 GROUP BY product_id;
 
+CREATE INDEX ct_idx_product_id ON count_rating_agg(product_id);
+
 --  average rating view
 CREATE VIEW avg_rating AS
 SELECT
@@ -94,7 +102,7 @@ SELECT
 FROM characteristics c JOIN characteristic_reviews cr ON c.id = cr.characteristic_id
 GROUP BY c.product_id, c.name;
 
---- Materialized View of Agg Avg Ratins
+--- Materialized View for meta Average Ratings
 CREATE MATERIALIZED VIEW avg_rating_agg AS
 SELECT
   product_id,
@@ -106,3 +114,11 @@ SELECT
   )) characteristics
 FROM avg_rating
 GROUP BY product_id;
+
+CREATE INDEX avg_idx_product_id ON avg_rating_agg(product_id);
+
+-- /reviews query
+-- SELECT * FROM reviews r JOIN photos_agg p ON r.review_id = p.review_id WHERE product_id = 40350;
+
+-- meta query
+-- SELECT * FROM count_rating_agg c JOIN avg_rating_agg a ON c.product_id = a.product_id WHERE c.product_id = 40350;
