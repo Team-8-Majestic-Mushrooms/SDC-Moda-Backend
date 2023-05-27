@@ -30,3 +30,15 @@ module.exports = {
       });
   },
 };
+
+// newReview obj = {
+//         product_id: product.id,
+//         rating,
+//         summary,
+//         body,
+//         recommend,
+//         name,
+//         email,
+//         photos,
+//         characteristics: charRatings,
+//       }
