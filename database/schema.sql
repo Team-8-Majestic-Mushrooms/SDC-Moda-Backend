@@ -37,6 +37,25 @@ CREATE TABLE reviews (
 
 CREATE INDEX r_idx_product_id ON reviews(product_id);
 
+-- Materialized view for meta counts
+CREATE MATERIALIZED VIEW count_rating_agg AS
+SELECT product_id,
+  JSONB_BUILD_OBJECT(
+  '1', COUNT(rating) FILTER (WHERE rating = 1),
+  '2', COUNT(rating) FILTER (WHERE rating = 2),
+  '3', COUNT(rating) FILTER (WHERE rating = 3),
+  '4', COUNT(rating) FILTER (WHERE rating = 4),
+  '5', COUNT(rating) FILTER (WHERE rating = 5)
+  ) AS ratings,
+  JSON_BUILD_OBJECT(
+    'false', COUNT(recommend) FILTER (WHERE recommend = false),
+    'true', COUNT(recommend) FILTER (WHERE recommend = true)
+  ) AS recommended
+FROM reviews
+GROUP BY product_id;
+
+CREATE INDEX ct_idx_product_id ON count_rating_agg(product_id);
+
 -- Photos
 CREATE TABLE photos(
   id serial primary key,
@@ -72,25 +91,6 @@ CREATE TABLE characteristic_reviews(
 \copy characteristic_reviews from '../SDC_Data/characteristic_reviews.csv' with csv header;
 
 CREATE INDEX idx_char_id ON characteristic_reviews(characteristic_id);
-
--- Materialized view for meta counts
-CREATE MATERIALIZED VIEW count_rating_agg AS
-SELECT product_id,
-  JSONB_BUILD_OBJECT(
-  '1', COUNT(rating) FILTER (WHERE rating = 1),
-  '2', COUNT(rating) FILTER (WHERE rating = 2),
-  '3', COUNT(rating) FILTER (WHERE rating = 3),
-  '4', COUNT(rating) FILTER (WHERE rating = 4),
-  '5', COUNT(rating) FILTER (WHERE rating = 5)
-  ) AS ratings,
-  JSON_BUILD_OBJECT(
-    'false', COUNT(recommend) FILTER (WHERE recommend = false),
-    'true', COUNT(recommend) FILTER (WHERE recommend = true)
-  ) AS recommended
-FROM reviews
-GROUP BY product_id;
-
-CREATE INDEX ct_idx_product_id ON count_rating_agg(product_id);
 
 --  average rating view
 CREATE VIEW avg_rating AS
