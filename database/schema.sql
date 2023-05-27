@@ -44,6 +44,10 @@ CREATE TABLE photos(
 
 \copy photos from '../SDC_Data/reviews_photos.csv' with csv header;
 
+CREATE MATERIALIZED VIEW photos_agg AS
+  SELECT review_id, jsonb_agg(jsonb_build_object('id', id, 'url', url)) AS photos
+  FROM photos GROUP BY review_id;
+
 -- Characteristics
 CREATE TABLE characteristics (
   id serial primary key,
@@ -56,9 +60,49 @@ CREATE TABLE characteristics (
 -- Characteristic_Reviews
 CREATE TABLE characteristic_reviews(
   id serial primary key,
+  characteristic_id int references characteristics(id),
   review_id int references reviews(review_id),
-  characteristic_id int,  --references characteristics(id), -- need to address fk issues
   value int
 );
 
 \copy characteristic_reviews from '../SDC_Data/characteristic_reviews.csv' with csv header;
+
+-- query for meta counts
+CREATE MATERIALIZED VIEw count_rating_agg AS
+SELECT product_id,
+  JSONB_BUILD_OBJECT(
+  '1', COUNT(rating) FILTER (WHERE rating = 1),
+  '2', COUNT(rating) FILTER (WHERE rating = 2),
+  '3', COUNT(rating) FILTER (WHERE rating = 3),
+  '4', COUNT(rating) FILTER (WHERE rating = 4),
+  '5', COUNT(rating) FILTER (WHERE rating = 5)
+  ) AS ratings,
+  JSON_BUILD_OBJECT(
+    'false', COUNT(recommend) FILTER (WHERE recommend = false),
+    'true', COUNT(recommend) FILTER (WHERE recommend = true)
+  ) AS recommended
+FROM reviews
+GROUP BY product_id;
+
+--  average rating view
+CREATE VIEW avg_rating AS
+SELECT
+  ROW_NUMBER() OVER (ORDER BY c.product_id) as id,
+  c.product_id,
+  c.name,
+  AVG(cr.value) avg_value
+FROM characteristics c JOIN characteristic_reviews cr ON c.id = cr.characteristic_id
+GROUP BY c.product_id, c.name;
+
+--- Materialized View of Agg Avg Ratins
+CREATE MATERIALIZED VIEW avg_rating_agg AS
+SELECT
+  product_id,
+  JSONB_OBJECT_AGG(
+    name,
+    JSONB_BUILD_OBJECT(
+    'id', avg_rating.id,
+    'value', avg_value
+  )) characteristics
+FROM avg_rating
+GROUP BY product_id;
