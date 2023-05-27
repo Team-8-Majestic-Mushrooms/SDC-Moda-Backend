@@ -41,15 +41,15 @@ CREATE INDEX r_idx_product_id ON reviews(product_id);
 CREATE MATERIALIZED VIEW count_rating_agg AS
 SELECT product_id,
   JSONB_BUILD_OBJECT(
-  '1', COUNT(rating) FILTER (WHERE rating = 1),
-  '2', COUNT(rating) FILTER (WHERE rating = 2),
-  '3', COUNT(rating) FILTER (WHERE rating = 3),
-  '4', COUNT(rating) FILTER (WHERE rating = 4),
-  '5', COUNT(rating) FILTER (WHERE rating = 5)
+  '1', COUNT(rating) FILTER (WHERE rating = 1)::text,
+  '2', COUNT(rating) FILTER (WHERE rating = 2)::text,
+  '3', COUNT(rating) FILTER (WHERE rating = 3)::text,
+  '4', COUNT(rating) FILTER (WHERE rating = 4)::text,
+  '5', COUNT(rating) FILTER (WHERE rating = 5)::text
   ) AS ratings,
   JSON_BUILD_OBJECT(
-    'false', COUNT(recommend) FILTER (WHERE recommend = false),
-    'true', COUNT(recommend) FILTER (WHERE recommend = true)
+    'false', COUNT(recommend) FILTER (WHERE recommend = false)::text,
+    'true', COUNT(recommend) FILTER (WHERE recommend = true)::text
   ) AS recommended
 FROM reviews
 GROUP BY product_id;
@@ -110,7 +110,7 @@ SELECT
     name,
     JSONB_BUILD_OBJECT(
     'id', avg_rating.id,
-    'value', avg_value
+    'value', avg_value::text
   )) characteristics
 FROM avg_rating
 GROUP BY product_id;

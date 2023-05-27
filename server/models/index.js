@@ -12,5 +12,9 @@ module.exports = {
 
     return db.any(q, [(page - 1) * count, count, orderBy[sort], productId]);
   },
-  // getMeta: ,
+  queryMeta: (productId) => {
+    const q = 'SELECT c.product_id::text, c.ratings, c.recommended, a.characteristics FROM count_rating_agg c JOIN avg_rating_agg a ON c.product_id = a.product_id WHERE c.product_id = $1';
+
+    return db.one(q, [productId]);
+  },
 };

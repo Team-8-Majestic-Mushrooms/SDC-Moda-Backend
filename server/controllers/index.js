@@ -1,4 +1,4 @@
-const { queryReviews } = require('../models');
+const { queryReviews, queryMeta } = require('../models');
 
 module.exports = {
   getReviews: (req, res) => {
@@ -9,14 +9,23 @@ module.exports = {
       .then((results) => {
         const resObj = {
           product: product_id,
-          page: page - 1,
-          count,
+          page: (page - 1) * count || 0,
+          count: Number(count) || 5,
           results,
         };
         res.status(200).json(resObj);
       })
       .catch((err) => {
-        console.log(err);
+        console.log('getReviews Error', err);
+        res.sendStatus(500);
+      });
+  },
+  getMeta: (req, res) => {
+    const { product_id } = req.query;
+    queryMeta(product_id)
+      .then((results) => res.status(200).json(results))
+      .catch((err) => {
+        console.log('getMeta Error:', err);
         res.sendStatus(500);
       });
   },
