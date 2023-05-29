@@ -36,6 +36,7 @@ CREATE TABLE reviews (
 \copy reviews from '../SDC_Data/reviews.csv' with csv header;
 
 CREATE INDEX r_idx_product_id ON reviews(product_id);
+SELECT setval('reviews_review_id_seq'::regclass, COALESCE((SELECT MAX(review_id) FROM reviews), 0), false);
 
 -- Materialized view for meta counts
 CREATE MATERIALIZED VIEW count_rating_agg AS
@@ -65,6 +66,8 @@ CREATE TABLE photos(
 
 \copy photos from '../SDC_Data/reviews_photos.csv' with csv header;
 
+SELECT setval('photos_id_seq'::regclass, COALESCE((SELECT MAX(id) FROM photos), 0), false);
+
 CREATE MATERIALIZED VIEW photos_agg AS
   SELECT review_id, jsonb_agg(jsonb_build_object('id', id, 'url', url)) AS photos
   FROM photos GROUP BY review_id;
@@ -80,6 +83,8 @@ CREATE TABLE characteristics (
 
 \copy characteristics from '../SDC_Data/characteristics.csv' with csv header;
 
+SELECT setval('characteristics_id_seq'::regclass, COALESCE((SELECT MAX(id) FROM characteristics), 0), false);
+
 -- Characteristic_Reviews
 CREATE TABLE characteristic_reviews(
   id serial primary key,
@@ -90,6 +95,7 @@ CREATE TABLE characteristic_reviews(
 
 \copy characteristic_reviews from '../SDC_Data/characteristic_reviews.csv' with csv header;
 
+SELECT setval('characteristic_reviews_id_seq'::regclass, COALESCE((SELECT MAX(id) FROM characteristic_reviews), 0), false);
 CREATE INDEX idx_char_id ON characteristic_reviews(characteristic_id);
 
 --  average rating view
