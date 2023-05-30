@@ -1,4 +1,4 @@
-const { queryReviews, queryMeta } = require('../models');
+const { queryReviews, queryMeta, insertReview } = require('../models');
 
 module.exports = {
   getReviews: (req, res) => {
@@ -26,6 +26,14 @@ module.exports = {
       .then((results) => res.status(200).json(results))
       .catch((err) => {
         console.log('getMeta Error:', err);
+        res.sendStatus(500);
+      });
+  },
+  postReview: (req, res) => {
+    insertReview(req.body)
+      .then((results) => res.status(201).send(results))
+      .catch((err) => {
+        console.log('postReview Error:', err);
         res.sendStatus(500);
       });
   },

@@ -10,6 +10,8 @@ app.use(morgan('dev'));
 
 app.get('/reviews', controllers.getReviews);
 
+app.post('/reviews', controllers.postReview);
+
 app.get('/reviews/meta', controllers.getMeta);
 
 app.listen(3000, () => {
