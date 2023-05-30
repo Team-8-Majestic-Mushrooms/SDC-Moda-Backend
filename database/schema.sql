@@ -22,40 +22,47 @@ CREATE TABLE reviews (
   review_id serial primary key,
   product_id int references products(id),
   rating int,
-  date bigint,
+  date bigint default extract(epoch from now()) * 1000,
   summary text,
   body text,
   recommend boolean default false,
   reported boolean default false,
   reviewer_name text,
   reviewer_email text,
-  response text,
+  response text default null,
   helpfulness int default 0
 );
 
 \copy reviews from '../SDC_Data/reviews.csv' with csv header;
 
 CREATE INDEX r_idx_product_id ON reviews(product_id);
-SELECT setval('reviews_review_id_seq'::regclass, COALESCE((SELECT MAX(review_id) FROM reviews), 0), false);
+SELECT setval('reviews_review_id_seq'::regclass, COALESCE((SELECT MAX(review_id) + 1 FROM reviews), 1), false);
 
--- Materialized view for meta counts
-CREATE MATERIALIZED VIEW count_rating_agg AS
-SELECT product_id,
-  JSONB_BUILD_OBJECT(
-  '1', COUNT(rating) FILTER (WHERE rating = 1)::text,
-  '2', COUNT(rating) FILTER (WHERE rating = 2)::text,
-  '3', COUNT(rating) FILTER (WHERE rating = 3)::text,
-  '4', COUNT(rating) FILTER (WHERE rating = 4)::text,
-  '5', COUNT(rating) FILTER (WHERE rating = 5)::text
-  ) AS ratings,
-  JSON_BUILD_OBJECT(
-    'false', COUNT(recommend) FILTER (WHERE recommend = false)::text,
-    'true', COUNT(recommend) FILTER (WHERE recommend = true)::text
-  ) AS recommended
-FROM reviews
-GROUP BY product_id;
-
-CREATE INDEX ct_idx_product_id ON count_rating_agg(product_id);
+-- Dynamic View for meta counts
+CREATE OR REPLACE FUNCTION dynamic_count_rating(input_param INTEGER)
+  RETURNS TABLE (product_id INTEGER, ratings JSONB, recommended JSONB) AS
+$$
+BEGIN
+  RETURN QUERY EXECUTE format('
+    SELECT product_id,
+      JSONB_BUILD_OBJECT(
+      %L, COUNT(rating) FILTER (WHERE rating = 1)::text,
+      %L, COUNT(rating) FILTER (WHERE rating = 2)::text,
+      %L, COUNT(rating) FILTER (WHERE rating = 3)::text,
+      %L, COUNT(rating) FILTER (WHERE rating = 4)::text,
+      %L, COUNT(rating) FILTER (WHERE rating = 5)::text
+      ) AS ratings,
+      JSONB_BUILD_OBJECT(
+        %L, COUNT(recommend) FILTER (WHERE recommend = false)::text,
+        %L, COUNT(recommend) FILTER (WHERE recommend = true)::text
+      ) AS recommended
+    FROM reviews
+    WHERE product_id = %s
+    GROUP BY product_id;
+  ', '1', '2', '3', '4', '5', 'false', 'true', input_param);
+END;
+$$
+LANGUAGE plpgsql;
 
 -- Photos
 CREATE TABLE photos(
@@ -66,13 +73,22 @@ CREATE TABLE photos(
 
 \copy photos from '../SDC_Data/reviews_photos.csv' with csv header;
 
-SELECT setval('photos_id_seq'::regclass, COALESCE((SELECT MAX(id) FROM photos), 0), false);
+CREATE INDEX idx_review_id ON photos(review_id);
+SELECT setval('photos_id_seq'::regclass, COALESCE((SELECT MAX(id) + 1 FROM photos), 1), false);
 
-CREATE MATERIALIZED VIEW photos_agg AS
-  SELECT review_id, jsonb_agg(jsonb_build_object('id', id, 'url', url)) AS photos
-  FROM photos GROUP BY review_id;
-
-CREATE INDEX idx_review_id ON photos_agg(review_id);
+-- dynamic photo_agg function
+CREATE OR REPLACE FUNCTION dynamic_photo_agg(input_param INTEGER)
+  RETURNS TABLE (review_id INTEGER, photos JSONB) AS
+$$
+BEGIN
+  RETURN QUERY EXECUTE format('
+    SELECT review_id, jsonb_agg(jsonb_build_object(%L, id, %L, url)) AS photos
+    FROM photos
+    WHERE review_id = %s
+    GROUP BY review_id;', 'id', 'url', input_param);
+END;
+$$
+LANGUAGE plpgsql;
 
 -- Characteristics
 CREATE TABLE characteristics (
@@ -83,7 +99,7 @@ CREATE TABLE characteristics (
 
 \copy characteristics from '../SDC_Data/characteristics.csv' with csv header;
 
-SELECT setval('characteristics_id_seq'::regclass, COALESCE((SELECT MAX(id) FROM characteristics), 0), false);
+SELECT setval('characteristics_id_seq'::regclass, COALESCE((SELECT MAX(id) + 1 FROM characteristics), 1), false);
 
 -- Characteristic_Reviews
 CREATE TABLE characteristic_reviews(
@@ -95,33 +111,87 @@ CREATE TABLE characteristic_reviews(
 
 \copy characteristic_reviews from '../SDC_Data/characteristic_reviews.csv' with csv header;
 
-SELECT setval('characteristic_reviews_id_seq'::regclass, COALESCE((SELECT MAX(id) FROM characteristic_reviews), 0), false);
+SELECT setval('characteristic_reviews_id_seq'::regclass, COALESCE((SELECT MAX(id) + 1 FROM characteristic_reviews), 1), false);
 CREATE INDEX idx_char_id ON characteristic_reviews(characteristic_id);
 
---  average rating view
-CREATE VIEW avg_rating AS
-SELECT
-  ROW_NUMBER() OVER (ORDER BY c.product_id) as id,
-  c.product_id,
-  c.name,
-  AVG(cr.value) avg_value
-FROM characteristics c JOIN characteristic_reviews cr ON c.id = cr.characteristic_id
-GROUP BY c.product_id, c.name;
+-- Dynamice avg rating by product_id
+CREATE OR REPLACE FUNCTION dynamic_avg_rating(input_param INTEGER)
+  RETURNS TABLE (id INTEGER, product_id INTEGER, name TEXT, avg_value DECIMAL) AS
+$$
+BEGIN
+  RETURN QUERY EXECUTE format('
+    SELECT
+    c.id as id,
+    c.product_id,
+    c.name,
+    AVG(cr.value) avg_value
+    FROM characteristics c JOIN characteristic_reviews cr ON c.id = cr.characteristic_id
+    WHERE c.product_id = %s
+    GROUP BY c.product_id, c.id, c.name;', input_param);
+END;
+$$
+LANGUAGE plpgsql;
 
---- Materialized View for meta Average Ratings
-CREATE MATERIALIZED VIEW avg_rating_agg AS
+
+
+CREATE OR REPLACE FUNCTION dynamic_avg_rating_agg(input_param INTEGER)
+  RETURNS TABLE (product_id INTEGER, characteristics JSONB) AS
+$$
+BEGIN
+  RETURN QUERY EXECUTE format('
+    SELECT
+    product_id,
+    JSONB_OBJECT_AGG(
+      name,
+      JSONB_BUILD_OBJECT(
+      %L, id,
+      %L, avg_value::text
+    )) characteristics
+    FROM dynamic_avg_rating(%s)
+    GROUP BY product_id;
+  ', 'id', 'value', input_param);
+END;
+$$
+LANGUAGE plpgsql;
+
+
+
 SELECT
   product_id,
   JSONB_OBJECT_AGG(
     name,
     JSONB_BUILD_OBJECT(
-    'id', avg_rating.id,
+    'id', id,
     'value', avg_value::text
   )) characteristics
-FROM avg_rating
+FROM generate_dynamic_view(56788)
 GROUP BY product_id;
 
-CREATE INDEX avg_idx_product_id ON avg_rating_agg(product_id);
+
+--  average rating view
+-- CREATE VIEW avg_rating AS
+-- SELECT
+--   c.id as id,
+--   c.product_id,
+--   c.name,
+--   AVG(cr.value) avg_value
+-- FROM characteristics c JOIN characteristic_reviews cr ON c.id = cr.characteristic_id
+-- GROUP BY c.product_id, c.id, c.name;
+
+--- Materialized View for meta Average Ratings
+-- CREATE MATERIALIZED VIEW avg_rating_agg AS
+-- SELECT
+--   product_id,
+--   JSONB_OBJECT_AGG(
+--     name,
+--     JSONB_BUILD_OBJECT(
+--     'id', avg_rating.id,
+--     'value', avg_value::text
+--   )) characteristics
+-- FROM avg_rating
+-- GROUP BY product_id;
+
+-- CREATE INDEX avg_idx_product_id ON avg_rating_agg(product_id);
 
 -- /reviews query
 -- SELECT * FROM reviews r JOIN photos_agg p ON r.review_id = p.review_id WHERE product_id = 40350;
