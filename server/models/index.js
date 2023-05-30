@@ -69,6 +69,14 @@ module.exports = {
         return t.batch(batch);
       }));
   },
+  updateHelpfulness: (reviewId) => {
+    const q = 'UPDATE reviews SET helpfulness = helpfulness + 1 WHERE review_id = $1';
+    return db.none(q, [reviewId]);
+  },
+  updateReported: (reviewId) => {
+    const q = 'UPDATE reviews SET reported = true WHERE review_id = $1';
+    return db.none(q, [reviewId]);
+  },
 };
 
 // newReview obj = {

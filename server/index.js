@@ -14,6 +14,10 @@ app.post('/reviews', controllers.postReview);
 
 app.get('/reviews/meta', controllers.getMeta);
 
+app.put('/reviews/:review_id/helpful', controllers.putHelpful);
+
+app.put('/reviews/:review_id/report', controllers.putReported);
+
 app.listen(3000, () => {
   console.log(`LISTENING ON PORT ${process.env.PORT}`);
 });

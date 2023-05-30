@@ -1,4 +1,10 @@
-const { queryReviews, queryMeta, insertReview } = require('../models');
+const {
+  queryReviews,
+  queryMeta,
+  insertReview,
+  updateHelpfulness,
+  updateReported,
+} = require('../models');
 
 module.exports = {
   getReviews: (req, res) => {
@@ -31,9 +37,25 @@ module.exports = {
   },
   postReview: (req, res) => {
     insertReview(req.body)
-      .then((results) => res.status(201).send(results))
+      .then(() => res.sendStatus(201))
       .catch((err) => {
         console.log('postReview Error:', err);
+        res.sendStatus(500);
+      });
+  },
+  putHelpful: (req, res) => {
+    updateHelpfulness(req.params.review_id)
+      .then(() => res.sendStatus(204))
+      .catch((err) => {
+        console.log('putHelpful Error:', err);
+        res.sendStatus(500);
+      });
+  },
+  putReported: (req, res) => {
+    updateReported(req.params.review_id)
+      .then(() => res.sendStatus(204))
+      .catch((err) => {
+        console.log('putHelpful Error:', err);
         res.sendStatus(500);
       });
   },
