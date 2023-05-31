@@ -99,6 +99,7 @@ CREATE TABLE characteristics (
 
 \copy characteristics from '../SDC_Data/characteristics.csv' with csv header;
 
+CREATE INDEX ch_idx_product_id ON characteristics(product_id);
 SELECT setval('characteristics_id_seq'::regclass, COALESCE((SELECT MAX(id) + 1 FROM characteristics), 1), false);
 
 -- Characteristic_Reviews
