@@ -2,6 +2,7 @@ const db = require('../../database/db');
 
 module.exports = {
   queryReviews: (productId, page = 1, count = 5, sort = 'relevant') => {
+    console.log('DB Pool:', db.$pool);
     const orderBy = {
       relevant: 'rating',
       newest: 'date',
