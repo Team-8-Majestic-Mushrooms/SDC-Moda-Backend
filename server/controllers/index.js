@@ -8,7 +8,7 @@ const {
 
 module.exports = {
   getReviews: (req, res) => {
-    console.log('Query:', req.query);
+    // console.log('Query:', req.query);
     const {
       page, count, sort, product_id,
     } = req.query;
