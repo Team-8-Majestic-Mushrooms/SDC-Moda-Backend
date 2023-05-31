@@ -1,36 +1,103 @@
 const request = require('supertest');
-const express = require('express');
-const morgan = require('morgan');
 const controllers = require('../controllers');
-const db = require('../../database/db');
+const models = require('../models');
+const pgp = require('pg-promise')();
+const app = require('..');
 
-const app = express();
-
-app.use(express.json());
-app.use(morgan('dev'));
-
-app.get('/reviews', controllers.getReviews);
-app.post('/reviews', controllers.postReview);
+jest.mock('../controllers');
+jest.mock('../models');
 
 describe('Reviews Routes', () => {
-  beforeEach(() => db.none('CREATE TEMPORARY TABLE reviews (LIKE reviews INCLUDING ALL)')
-    .then((result) => console.log('CREATE RESULT', result))
-    .then(db.none(
-      'INSERT INTO pg_temp.reviews (product_id, rating, summary, body, recommend, reviewer_name, reviewer_email) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [40344, 4, 'Test Review 1', 'This is a test review', true, 'lundo', 'lundo@lundo.dev'],
-    )));
+  let db;
+  let connection;
 
-  afterEach(() => db.none('DROP TABLE IF EXISTS pg_temp.reviews'));
+  beforeAll(() => {
+    const cn = {
+      host: process.env.HOST,
+      port: process.env.PGPORT,
+      database: process.env.DB,
+      user: process.env.USER,
+      max: 1,
+      idleTimeoutMillis: 0,
+    };
+    db = pgp(cn);
 
-  describe('GET /reviews', () => {
-    it('should respond with a list of reviews', (done) => request(app)
-      .get('/reviews')
-      .expect('Content-Type', /json/)
-      .expect(200)
-      .then((res) => {
-        expect(res.product_id).toBe(40344);
+    models.queryReviews.mockImplementation((productId, page = 1, count = 5, sort = 'relevant') => {
+      // console.log('DB Pool in jest test:', db.$pool);
+      const orderBy = {
+        relevant: 'rating',
+        newest: 'date',
+        helpful: 'helpfulness',
+      };
+      const q = 'SELECT r.review_id, r.rating, r.summary, r.recommend, r.response, r.body, r.date, r.reviewer_name, r.helpfulness, p.photos FROM reviews r LEFT JOIN dynamic_photo_agg(r.review_id) p ON r.review_id = p.review_id WHERE product_id = $4 ORDER BY $3^ DESC LIMIT $2 OFFSET $1';
+      return db.any(q, [(page - 1) * count, count, orderBy[sort], productId]);
+    });
+
+    controllers.getReviews.mockImplementation((req, res) => {
+      // console.log('Query: in jest test', req.query);
+      const {
+        page, count, sort, product_id,
+      } = req.query;
+      models.queryReviews(product_id, page, count, sort)
+        .then((results) => {
+          const resObj = {
+            product: product_id,
+            page: (page - 1) * count || 0,
+            count: Number(count) || 5,
+            results,
+          };
+          res.status(200).json(resObj);
+        })
+        .catch((err) => {
+          console.log('getReviews Error', err);
+          res.sendStatus(500);
+        });
+    });
+
+    app.get('/reviews', controllers.getReviews);
+    connection = app.listen(3001);
+  });
+
+  afterAll(() => {
+    db.$pool.end();
+    connection.close();
+    console.log('Pool and connection closed');
+  });
+
+  beforeEach((done) => {
+    db.none('CREATE TEMPORARY TABLE reviews (LIKE reviews)')
+      .then(() => {
+        db.none(
+          'INSERT INTO pg_temp.reviews (product_id, rating, summary, body, recommend, reviewer_name, reviewer_email, review_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+          [40344, 4, 'Test Review 1', 'This is a test review', true, 'lundo', 'lundo@lundo.dev', 5],
+        );
         done();
       })
-      .catch((err) => done(err)));
+      .catch((err) => done(err));
+    console.log('Tables created');
+  });
+
+  afterEach((done) => {
+    db.none('DROP TABLE IF EXISTS pg_temp.reviews')
+      .then(() => done())
+      .catch((err) => done(err));
+    console.log('Tables cleaned up');
+  });
+
+  describe('/GET reviews route', () => {
+    it('should respond with a list of reviews', (done) => {
+      request(app)
+        .get('/reviews')
+        .query({
+          page: '1', count: '5', sort: 'relevant', product_id: '40344',
+        })
+        .expect(200)
+        .then((res) => {
+          const response = JSON.parse(res.text);
+          expect(response.product).toBe('40344');
+          done();
+        })
+        .catch((err) => done(err));
+    });
   });
 });
