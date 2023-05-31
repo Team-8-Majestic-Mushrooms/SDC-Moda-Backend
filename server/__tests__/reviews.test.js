@@ -7,11 +7,13 @@ const app = require('..');
 jest.mock('../controllers');
 jest.mock('../models');
 
+console.log('put Helpful', controllers.putHelpful());
+
 describe('Reviews Routes', () => {
   let db;
   let connection;
 
-  beforeAll(() => {
+  beforeAll((done) => {
     const cn = {
       host: process.env.HOST,
       port: process.env.PGPORT,
@@ -56,32 +58,28 @@ describe('Reviews Routes', () => {
 
     app.get('/reviews', controllers.getReviews);
     connection = app.listen(3001);
-  });
 
-  afterAll(() => {
-    db.$pool.end();
-    connection.close();
-    console.log('Pool and connection closed');
-  });
-
-  beforeEach((done) => {
     db.none('CREATE TEMPORARY TABLE reviews (LIKE reviews)')
       .then(() => {
         db.none(
-          'INSERT INTO pg_temp.reviews (product_id, rating, summary, body, recommend, reviewer_name, reviewer_email, review_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-          [40344, 4, 'Test Review 1', 'This is a test review', true, 'lundo', 'lundo@lundo.dev', 5],
+          'INSERT INTO pg_temp.reviews (product_id, rating, summary, body, recommend, reviewer_name, reviewer_email, review_id, helpfulness, reported) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+          [40344, 4, 'Test Review 1', 'This is a test review', true, 'lundo', 'lundo@lundo.dev', 5, 0, false],
         );
+        done();
+        console.log('Tables created');
+      })
+      .catch((err) => done(err));
+  });
+
+  afterAll((done) => {
+    db.none('DROP TABLE IF EXISTS pg_temp.reviews')
+      .then(() => {
+        db.$pool.end();
+        connection.close();
+        console.log('Pool and connection closed');
         done();
       })
       .catch((err) => done(err));
-    console.log('Tables created');
-  });
-
-  afterEach((done) => {
-    db.none('DROP TABLE IF EXISTS pg_temp.reviews')
-      .then(() => done())
-      .catch((err) => done(err));
-    console.log('Tables cleaned up');
   });
 
   describe('/GET reviews route', () => {
@@ -95,6 +93,17 @@ describe('Reviews Routes', () => {
         .then((res) => {
           const response = JSON.parse(res.text);
           expect(response.product).toBe('40344');
+          done();
+        })
+        .catch((err) => done(err));
+    });
+  });
+
+  describe('/PUT routes', () => {
+    it('should increment the helpfulness column when a put request is sent to the helpful route', (done) => {
+      db.any('SELECT * FROM reviews')
+        .then((res) => {
+          console.log('PUT route test SELECT', res);
           done();
         })
         .catch((err) => done(err));

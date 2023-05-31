@@ -156,16 +156,16 @@ LANGUAGE plpgsql;
 
 
 
-SELECT
-  product_id,
-  JSONB_OBJECT_AGG(
-    name,
-    JSONB_BUILD_OBJECT(
-    'id', id,
-    'value', avg_value::text
-  )) characteristics
-FROM generate_dynamic_view(56788)
-GROUP BY product_id;
+-- SELECT
+--   product_id,
+--   JSONB_OBJECT_AGG(
+--     name,
+--     JSONB_BUILD_OBJECT(
+--     'id', id,
+--     'value', avg_value::text
+--   )) characteristics
+-- FROM generate_dynamic_view(56788)
+-- GROUP BY product_id;
 
 
 --  average rating view
