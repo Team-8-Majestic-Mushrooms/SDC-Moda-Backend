@@ -82,7 +82,10 @@ CREATE OR REPLACE FUNCTION dynamic_photo_agg(input_param INTEGER)
 $$
 BEGIN
   RETURN QUERY EXECUTE format('
-    SELECT review_id, jsonb_agg(jsonb_build_object(%L, id, %L, url)) AS photos
+    SELECT
+      review_id,
+      COALESCE(jsonb_agg(jsonb_build_object(%L, id, %L, url)), 0)
+      AS photos
     FROM photos
     WHERE review_id = %s
     GROUP BY review_id;', 'id', 'url', input_param);

@@ -31,8 +31,8 @@ describe('Reviews Routes', () => {
         newest: 'date',
         helpful: 'helpfulness',
       };
-      const q = 'SELECT r.review_id, r.rating, r.summary, r.recommend, r.response, r.body, r.date, r.reviewer_name, r.helpfulness, p.photos FROM reviews r LEFT JOIN dynamic_photo_agg(r.review_id) p ON r.review_id = p.review_id WHERE product_id = $4 ORDER BY $3^ DESC LIMIT $2 OFFSET $1';
-      return db.any(q, [(page - 1) * count, count, orderBy[sort], productId]);
+      const q = 'SELECT r.review_id, r.rating, r.summary, r.recommend, r.response, r.body, r.date, r.reviewer_name, r.helpfulness, COALESCE(p.photos, $5^::jsonb) FROM reviews r LEFT JOIN dynamic_photo_agg(r.review_id) p ON r.review_id = p.review_id WHERE product_id = $4 ORDER BY $3^ DESC LIMIT $2 OFFSET $1';
+      return db.any(q, [(page - 1) * count, count, orderBy[sort], productId, '[]']);
     });
 
     controllers.getReviews.mockImplementation((req, res) => {
