@@ -4,17 +4,17 @@ import { check, sleep } from 'k6';
 
 export const options = {
   stages: [
-    { duration: '3s', target: 1000 },
-    { duration: '30s', target: 1000 },
-    { duration: '3s', target: 0 },
+    { duration: '2s', target: 1500 },
+    { duration: '33s', target: 2000 },
+    { duration: '1s', target: 0 },
   ],
 };
 
 export default () => {
   const productId = Math.floor(900000 + Math.random() * 100000);
-  const res = http.get(http.url`http://localhost:3001/reviews?product_id=${productId}`); // should be api reviews; need to update in frontend router
+  const res = http.get(http.url`http://localhost:3000/reviews?product_id=${productId}`); // should be api reviews; need to update in frontend router
   check(res, {
     'is Status 200': (r) => r.status === 200,
   });
-  sleep(1);
+  // sleep(1);
 }
