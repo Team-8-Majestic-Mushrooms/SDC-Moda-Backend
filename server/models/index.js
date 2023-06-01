@@ -44,9 +44,9 @@ module.exports = {
       charVars.push(review.characteristics[charId]);
     });
 
-    console.log('Review Insert Query:', reviewInsertQ);
-    console.log('Photos Insert Query:', photosInsertQ);
-    console.log('Char Review Insert Query:', charReviewInsertQ);
+    // console.log('Review Insert Query:', reviewInsertQ);
+    // console.log('Photos Insert Query:', photosInsertQ);
+    // console.log('Char Review Insert Query:', charReviewInsertQ);
 
     return db.tx((t) => t.one(
       reviewInsertQ,
