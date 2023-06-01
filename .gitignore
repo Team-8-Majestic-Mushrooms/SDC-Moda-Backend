@@ -7,3 +7,7 @@ coverage/
 
 ## config
 .env
+
+# docker
+Dockerfile
+.dockerignore
