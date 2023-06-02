@@ -11,3 +11,6 @@ coverage/
 # docker
 Dockerfile
 .dockerignore
+
+#SQL
+*.pgsql*

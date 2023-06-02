@@ -84,7 +84,7 @@ BEGIN
   RETURN QUERY EXECUTE format('
     SELECT
       review_id,
-      COALESCE(jsonb_agg(jsonb_build_object(%L, id, %L, url)), 0)
+      jsonb_agg(jsonb_build_object(%L, id, %L, url))
       AS photos
     FROM photos
     WHERE review_id = %s
